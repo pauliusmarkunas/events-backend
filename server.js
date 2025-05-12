@@ -14,7 +14,9 @@ const app = express();
 app.use(
   cors({
     origin: FRONTEND_ORIGIN,
+    // origin: "*",
     credentials: true,
+    allowedHeaders: ["Content-Type", "authorization"],
   })
 );
 

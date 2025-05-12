@@ -1,6 +1,9 @@
 import pool from "../utils/pgConnection.js";
 import { encryptPassword, checkPassword } from "../utils/passwordCrypt.js";
-// import { generateJwtToken } from "../utilities/generateJwt.js";
+import { generateJwtToken } from "../utils/generateJwt.js";
+import dotenv from "dotenv";
+dotenv.config();
+const IS_PRODUCTION = process.env.IS_PRODUCTION === "production";
 
 export async function register(req, res) {
   const { email, password, firstName, lastName } = req.body;
@@ -37,55 +40,40 @@ export async function register(req, res) {
   }
 }
 
-// export async function login(req, res) {
-//   const { username, password } = req.body;
+export async function login(req, res) {
+  const { email, password } = req.body;
 
-//   try {
-//     const userQuery = await pool.query(
-//       "select username, password_hash, id, is_admin from users where username = $1",
-//       [username]
-//     );
+  try {
+    const user = await pool.query(
+      "select * from organizers where email = $1 and deleted_at IS NULL",
+      [email]
+    );
 
-//     if (userQuery.rows.length === 0) {
-//       return res.status(401).json({ message: "Invalid credentials" });
-//     }
+    if (user.rowCount === 0) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
 
-//     const user = userQuery.rows[0];
+    const userData = user.rows[0];
 
-//     const isPasswordCorrect = await checkPassword(password, user.password_hash);
+    const isPasswordCorrect = await checkPassword(
+      password,
+      userData.password_hash
+    );
 
-//     if (!isPasswordCorrect) {
-//       return res.status(401).json({ message: "Invalid credentials" });
-//     }
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
 
-//     if (isPasswordCorrect === true) {
-//       const token = generateJwtToken(user);
+    const token = generateJwtToken(userData);
 
-//       res.cookie("token", token, {
-//         httpOnly: true,
-//         sameSite: "none",
-//         secure: true,
-//         maxAge: 15 * 60 * 1000, //15 min
-//       });
-//     }
+    res.status(200).json({ message: "Login successful", token });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}
 
-//     res.status(200).json({ message: "Login successful" });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// }
+export function getUserInfo(req, res) {
+  res.status(200).json(req.user);
+}
 
-// export function logout(req, res) {
-//   res.cookie("token", null, {
-//     httpOnly: true,
-//     secure: true,
-//     sameSite: "none",
-//   });
-
-//   res.status(200);
-// }
-
-// export function getUserInfo(req, res) {
-//   const { user } = req.body;
-//   res.status(200).json(user);
-// }
+// different approach: use bearer header with jwt...
